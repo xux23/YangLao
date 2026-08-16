@@ -1,0 +1,32 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # 如密码不同请修改这里
+    url: jdbc:mysql://localhost:3306/elder_care?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+  jackson:
+    time-zone: GMT+8
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+
+# 自定义配置：JWT 密钥与有效期
+app:
+  jwt:
+    # HS256 密钥，长度至少 32 位，部署时可修改
+    secret: elder-care-system-jwt-secret-key-2026-abcdefghijk
+    # 令牌有效期（小时）
+    expire-hours: 24
+
+logging:
+  level:
+    com.eldercare: debug

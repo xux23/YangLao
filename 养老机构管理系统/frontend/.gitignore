@@ -1,0 +1,6 @@
+# 前端 Git 忽略文件
+node_modules/
+dist/
+.DS_Store
+*.local
+npm-debug.log*
