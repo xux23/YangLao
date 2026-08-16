@@ -1,0 +1,10 @@
+# 后端 Git 忽略文件
+target/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+.idea/
+*.iml
+.vscode/
+.DS_Store
+logs/
