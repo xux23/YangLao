@@ -1,0 +1,255 @@
+/* ============================================================
+   全局主题：暖阳关怀风
+   色彩体系 —— 奶油底 + 柿橙主色 + 墨绿辅助 + 暖棕墨色文字
+   说明：仅覆盖 Element Plus 的 CSS 变量与外观，不改变组件行为
+   ============================================================ */
+
+:root {
+  /* 品牌色 */
+  --brand: #d96f3a;        /* 柿橙（主色） */
+  --brand-deep: #b9551f;   /* 深柿橙 */
+  --brand-soft: #faeede;   /* 浅橙底 */
+
+  /* 辅助色 */
+  --pine: #2f5d50;         /* 墨绿（守护/健康） */
+  --pine-deep: #22463c;
+  --pine-soft: #e8f0ec;
+
+  /* 中性色 */
+  --cream: #f6f2ea;        /* 页面底色 */
+  --ink: #33302b;          /* 主文字（暖棕墨） */
+  --ink-2: #6f675d;        /* 次文字 */
+  --line: #eae2d3;         /* 分隔线 */
+
+  /* 标题衬线字体：中文宋体系 + 西文 Georgia，正文仍用系统无衬线 */
+  --font-display: 'STZhongsong', 'Songti SC', 'SimSun', Georgia, 'Times New Roman', serif;
+
+  /* 覆盖 Element Plus 主色阶 */
+  --el-color-primary: #d96f3a;
+  --el-color-primary-light-3: #e3946f;
+  --el-color-primary-light-5: #ecb79c;
+  --el-color-primary-light-7: #f4d6c4;
+  --el-color-primary-light-8: #f8e2d5;
+  --el-color-primary-light-9: #fcf1e9;
+  --el-color-primary-dark-2: #b9551f;
+
+  --el-color-success: #57946a;
+  --el-color-success-light-3: #86b394;
+  --el-color-success-light-5: #abccB4;
+  --el-color-success-light-7: #d0e3d6;
+  --el-color-success-light-8: #dfecE3;
+  --el-color-success-light-9: #eef6f0;
+  --el-color-success-dark-2: #40754f;
+
+  --el-color-warning: #d9a13b;
+  --el-color-warning-light-3: #e4b868;
+  --el-color-warning-light-5: #eccd96;
+  --el-color-warning-light-7: #f4e0c1;
+  --el-color-warning-light-8: #f8e9d2;
+  --el-color-warning-light-9: #fcf4e7;
+  --el-color-warning-dark-2: #b3822b;
+
+  --el-color-danger: #cf5b4d;
+  --el-color-danger-light-3: #dd847a;
+  --el-color-danger-light-5: #e6aca4;
+  --el-color-danger-light-7: #f0cec9;
+  --el-color-danger-light-8: #f4dedb;
+  --el-color-danger-light-9: #faefed;
+  --el-color-danger-dark-2: #ad4538;
+  --el-color-error: #cf5b4d;
+  --el-color-error-light-3: #dd847a;
+  --el-color-error-light-5: #e6aca4;
+  --el-color-error-light-7: #f0cec9;
+  --el-color-error-light-8: #f4dedb;
+  --el-color-error-light-9: #faefed;
+  --el-color-error-dark-2: #ad4538;
+
+  --el-color-info: #8b8175;
+  --el-color-info-light-3: #a79e93;
+  --el-color-info-light-5: #c3bcb3;
+  --el-color-info-light-7: #ded9d2;
+  --el-color-info-light-8: #eae6e0;
+  --el-color-info-light-9: #f6f3ef;
+  --el-color-info-dark-2: #6f675d;
+
+  --el-text-color-primary: #33302b;
+  --el-text-color-regular: #4c463f;
+  --el-text-color-secondary: #6f675d;
+  --el-text-color-placeholder: #a89f92;
+  --el-border-color: #e3d9c8;
+  --el-border-color-light: #eae2d3;
+  --el-border-color-lighter: #f0e9dc;
+  --el-fill-color-light: #faf7f0;
+  --el-fill-color-lighter: #faf8f2;
+
+  --el-border-radius-base: 10px;
+  --el-border-radius-small: 8px;
+  --el-border-radius-round: 999px;
+
+  --el-box-shadow-light: 0 2px 10px rgba(74, 58, 32, 0.06);
+  --el-box-shadow: 0 4px 18px rgba(74, 58, 32, 0.09);
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+  color: var(--ink);
+  background: var(--cream);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 细暖色滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #ddd2bc;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #c9bba0;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------- 卡片 ---------- */
+.el-card {
+  border-radius: 16px;
+  border: 1px solid #efe7d8;
+  box-shadow: 0 1px 2px rgba(74, 58, 32, 0.03), 0 10px 28px -14px rgba(74, 58, 32, 0.1);
+}
+.el-card__header {
+  border-bottom: 1px dashed var(--line);
+  padding: 14px 20px;
+}
+.el-card__body {
+  padding: 18px 20px;
+}
+
+/* ---------- 按钮 ---------- */
+.el-button {
+  border-radius: 10px;
+  font-weight: 500;
+}
+.el-button--primary {
+  --el-button-hover-bg-color: var(--brand-deep);
+  --el-button-hover-border-color: var(--brand-deep);
+}
+.el-button.is-link {
+  font-weight: 500;
+}
+
+/* ---------- 标签：胶囊形 ---------- */
+.el-tag {
+  border-radius: 999px;
+  padding: 0 10px;
+  font-weight: 500;
+  border-width: 1px;
+}
+
+/* ---------- 表格 ---------- */
+.el-table {
+  --el-table-border-color: #eee5d5;
+  --el-table-header-bg-color: #faf6ee;
+  --el-table-header-text-color: #4c463f;
+  --el-table-row-hover-bg-color: #fdf6ec;
+  --el-table-tr-bg-color: #fffefb;
+  color: var(--ink);
+}
+.el-table th.el-table__cell {
+  font-weight: 600;
+  background: #faf6ee;
+}
+.el-table th.el-table__cell > .cell {
+  letter-spacing: 0.5px;
+}
+.el-table .el-table__cell {
+  padding: 10px 0;
+}
+
+/* ---------- 对话框 / 消息框 ---------- */
+.el-dialog {
+  border-radius: 18px;
+}
+.el-dialog__title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.el-dialog__header {
+  padding: 18px 24px 12px;
+}
+.el-dialog__body {
+  padding: 12px 24px 8px;
+}
+.el-dialog__footer {
+  padding: 10px 24px 18px;
+}
+.el-message-box {
+  border-radius: 16px;
+}
+
+/* ---------- 分页 ---------- */
+.el-pagination {
+  --el-pagination-button-bg-color: transparent;
+  font-weight: 500;
+}
+.el-pagination.is-background .el-pager li {
+  border-radius: 9px;
+  background: #f1ebdd;
+  color: var(--ink-2);
+}
+.el-pagination.is-background .el-pager li.is-active {
+  background: var(--brand);
+  color: #fff;
+}
+.el-pagination.is-background .btn-prev,
+.el-pagination.is-background .btn-next {
+  border-radius: 9px;
+  background: #f1ebdd;
+}
+
+/* ---------- 表单 ---------- */
+.el-input__wrapper,
+.el-select__wrapper,
+.el-textarea__inner {
+  border-radius: 10px;
+}
+.el-form-item__label {
+  color: var(--ink-2);
+}
+
+/* ---------- 下拉 / 弹层 ---------- */
+.el-dropdown-menu,
+.el-select-dropdown,
+.el-picker-panel {
+  border-radius: 12px;
+}
+.el-dropdown-menu__item:not(.is-disabled):hover,
+.el-dropdown-menu__item:not(.is-disabled):focus {
+  background: var(--brand-soft);
+  color: var(--brand-deep);
+}
+
+/* ---------- 消息提示 ---------- */
+.el-message {
+  border-radius: 999px;
+  border-width: 1px;
+}
+
+/* 业务列表页通用卡片标题（配合各页 .card-header 结构） */
+.card-header > span:first-child {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--ink);
+}

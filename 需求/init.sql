@@ -1,16 +1,18 @@
 -- ============================================================
--- 养老机构管理系统 初始化脚本
+-- 养老机构管理系统 数据库初始化脚本
 -- 数据库：MySQL 8.0
--- 说明：
---   1. 先执行 CREATE DATABASE elder_care DEFAULT CHARACTER SET utf8mb4;
---   2. 再导入本脚本：mysql -u root -p elder_care < init.sql
---   3. 演示账号密码均为 123456（BCrypt 加密存储）
---      管理员 admin / 护理 nure01,nurse02 / 家属 family01,family02
---   4. 若登录提示密码错误，请用 BCrypt 工具重新生成 123456 的密文替换 password 字段
+-- 使用方式：mysql -u root -p < init.sql
+-- 演示账号密码均为 123456（BCrypt 加密存储）：
+--   管理员  admin    护理人员 nurse01 / nurse02  家属 family01 / family02
+-- 说明：演示数据中的日期均相对系统当前日期生成（CURDATE），
+--       因此任何时候导入都能演示"今日任务、趋势图、逾期"等效果。
 -- ============================================================
 
+CREATE DATABASE IF NOT EXISTS elder_care DEFAULT CHARACTER SET utf8mb4;
+USE elder_care;
+
 -- ------------------------------------------------------------
--- 1. 用户表
+-- 1. 用户表（admin / nurse / family 三类角色共用）
 -- ------------------------------------------------------------
 DROP TABLE IF EXISTS sys_user;
 CREATE TABLE sys_user (
@@ -27,7 +29,7 @@ CREATE TABLE sys_user (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 
 -- ------------------------------------------------------------
--- 2. 老人信息表（业务主表，房间床位用字段）
+-- 2. 老人信息表（业务主表，房间床位用字段，不单独建表）
 -- ------------------------------------------------------------
 DROP TABLE IF EXISTS elder_info;
 CREATE TABLE elder_info (
@@ -91,19 +93,22 @@ CREATE TABLE health_record (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='健康体征记录表';
 
 -- ------------------------------------------------------------
--- 5. 用药计划表（一行 = 某老人某天某时间点一次用药任务）
+-- 5. 用药计划表（一行 = 某老人某天某个时间点的一次用药任务）
+--    disabled 字段为设计补充：计划停用后置 1，防止次日查询时
+--    被"按需生成"逻辑重新复制出新任务（历史行保留作档案）
 -- ------------------------------------------------------------
 DROP TABLE IF EXISTS medicine_plan;
 CREATE TABLE medicine_plan (
-  id           BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
-  elder_id     BIGINT       NOT NULL COMMENT '老人ID',
-  medicine_name VARCHAR(50) NOT NULL COMMENT '药名',
-  dosage       VARCHAR(50)  DEFAULT NULL COMMENT '剂量（如每次1片）',
-  plan_date    DATE         NOT NULL COMMENT '服药日期',
-  plan_time    TIME         NOT NULL COMMENT '服药时间点（如08:00）',
-  status       TINYINT      NOT NULL DEFAULT 0 COMMENT '状态 0待执行 1已执行 2已逾期',
-  confirm_time DATETIME     DEFAULT NULL COMMENT '确认执行时间',
-  create_time  DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  id            BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
+  elder_id      BIGINT       NOT NULL COMMENT '老人ID',
+  medicine_name VARCHAR(50)  NOT NULL COMMENT '药名',
+  dosage        VARCHAR(50)  DEFAULT NULL COMMENT '剂量（如每次1片）',
+  plan_date     DATE         NOT NULL COMMENT '服药日期',
+  plan_time     TIME         NOT NULL COMMENT '服药时间点（如08:00）',
+  status        TINYINT      NOT NULL DEFAULT 0 COMMENT '状态 0待执行 1已执行 2已逾期',
+  confirm_time  DATETIME     DEFAULT NULL COMMENT '确认执行时间',
+  disabled      TINYINT      NOT NULL DEFAULT 0 COMMENT '0正常 1已停用',
+  create_time   DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (id),
   KEY idx_elder_date (elder_id, plan_date),
   KEY idx_date_status (plan_date, status)
@@ -163,8 +168,9 @@ CREATE TABLE sys_log (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='操作日志表';
 
 -- ============================================================
--- 演示数据（密码均为 123456）
+-- 演示数据（密码均为 123456，BCrypt 密文）
 -- ============================================================
+
 INSERT INTO sys_user (id, username, password, real_name, role, phone) VALUES
 (1, 'admin',    '$2b$12$NQx.GzuzGDmzH8GWxSW4H.ufiXLDuNui1lawhKAfXaM/PsllRJbh2', '系统管理员', 'admin',  '13800000000'),
 (2, 'nurse01',  '$2b$12$NQx.GzuzGDmzH8GWxSW4H.ufiXLDuNui1lawhKAfXaM/PsllRJbh2', '王丽华',     'nurse',  '13800000001'),
@@ -172,42 +178,124 @@ INSERT INTO sys_user (id, username, password, real_name, role, phone) VALUES
 (4, 'family01', '$2b$12$NQx.GzuzGDmzH8GWxSW4H.ufiXLDuNui1lawhKAfXaM/PsllRJbh2', '张小明',     'family', '13900000001'),
 (5, 'family02', '$2b$12$NQx.GzuzGDmzH8GWxSW4H.ufiXLDuNui1lawhKAfXaM/PsllRJbh2', '陈晓芳',     'family', '13900000002');
 
+-- 老人档案（1、2、4、5 在住；3 已退住）
 INSERT INTO elder_info (id, name, gender, birthday, id_card, phone, emergency_contact, emergency_phone,
-                        room_no, bed_no, health_summary, status, checkin_time, family_id) VALUES
-(1, '张三',   1, '1940-05-12', '420000194005120011', '13900000010', '张小明', '13900000001', '201', 'A', '高血压，需低盐饮食，行动不便需轮椅辅助', 1, '2025-03-01', 4),
-(2, '李秀英', 2, '1943-08-20', '420000194308200022', '13900000020', '陈晓芳', '13900000002', '202', 'B', '糖尿病，每日测血糖，忌甜食', 1, '2025-06-15', 5),
-(3, '王德福', 1, '1935-01-05', '420000193501050033', '13900000030', '王强',   '13900000003', '203', 'A', '冠心病史，2026-07-30 已退住', 0, '2024-09-01', NULL);
+                        room_no, bed_no, health_summary, status, checkin_time, checkout_time, family_id) VALUES
+(1, '张三',   1, '1940-05-12', '420000194005120011', '13900000010', '张小明', '13900000001', '201', 'A', '高血压，需低盐饮食，行动不便需轮椅辅助',                        1, '2025-03-01', NULL, 4),
+(2, '李秀英', 2, '1943-08-20', '420000194308200022', '13900000020', '陈晓芳', '13900000002', '202', 'B', '糖尿病，每日测血糖，忌甜食',                                  1, '2025-06-15', NULL, 5),
+(3, '王德福', 1, '1935-01-05', '420000193501050033', '13900000030', '王强',   '13900000003', NULL, NULL, '冠心病史，已于 2026-07-30 退住',          0, '2024-09-01', '2026-07-30', NULL),
+(4, '张桂花', 2, '1947-03-18', '420000194703180044', '13900000040', '张伟',   '13900000004', '204', 'A', '轻度认知障碍，需定期照看',                                    1, '2026-01-10', NULL, NULL),
+(5, '刘建国', 1, '1959-11-02', '420000195911020055', '13900000050', '刘芳',   '13900000005', '205', 'B', '腰椎术后恢复中，避免剧烈活动',                                1, '2026-04-20', NULL, NULL);
 
+-- 护理记录（时间相对当前日期生成，保障趋势图演示效果）
 INSERT INTO care_record (elder_id, plan_name, plan_frequency, care_content, nurse_id, care_time, remark) VALUES
-(1, '翻身',     '每2小时一次',   '协助翻身并检查皮肤状况，无压疮', 2, '2026-08-16 08:30:00', '夜间交接：腿部保暖'),
-(1, '喂饭',     '每日三餐',      '早餐粥类，食欲良好，进食量正常', 2, '2026-08-16 07:30:00', NULL),
-(2, '血糖监测', '每日2次',       '早餐前空腹血糖 6.1，正常范围',  3, '2026-08-16 07:00:00', '午后复测'),
-(2, '洗澡',     '每周2次',       '协助淋浴，注意防滑，状态良好',  3, '2026-08-15 15:00:00', NULL);
+(1, '翻身', '每2小时一次', '协助翻身并检查皮肤状况，无压疮', 2, CONCAT(DATE_SUB(CURDATE(), INTERVAL 0 DAY), ' 08:30:00'), '夜间交接：注意腿部保暖'),
+(1, '喂饭', '每日三餐',    '早餐粥类，食欲良好，进食量正常',   2, CONCAT(DATE_SUB(CURDATE(), INTERVAL 0 DAY), ' 07:30:00'), NULL),
+(2, '血糖监测', '每日2次', '早餐前空腹血糖 6.1，正常范围',     3, CONCAT(DATE_SUB(CURDATE(), INTERVAL 0 DAY), ' 07:00:00'), '午后复测'),
+(1, '翻身', '每2小时一次', '协助翻身，皮肤状况良好',           2, CONCAT(DATE_SUB(CURDATE(), INTERVAL 1 DAY), ' 10:00:00'), NULL),
+(1, '喂饭', '每日三餐',    '晚餐粥类，进食量正常',             2, CONCAT(DATE_SUB(CURDATE(), INTERVAL 1 DAY), ' 18:00:00'), NULL),
+(2, '血糖监测', '每日2次', '午餐前血糖 5.9，正常范围',         3, CONCAT(DATE_SUB(CURDATE(), INTERVAL 1 DAY), ' 11:30:00'), NULL),
+(2, '洗澡', '每周2次',     '协助淋浴，注意防滑，状态良好',     3, CONCAT(DATE_SUB(CURDATE(), INTERVAL 1 DAY), ' 15:00:00'), NULL),
+(4, '康复训练', '每日1次', '上肢抬举训练 20 分钟，配合良好',   2, CONCAT(DATE_SUB(CURDATE(), INTERVAL 1 DAY), ' 09:30:00'), NULL),
+(1, '翻身', '每2小时一次', '协助翻身，检查皮肤无异常',         2, CONCAT(DATE_SUB(CURDATE(), INTERVAL 2 DAY), ' 08:30:00'), NULL),
+(2, '血糖监测', '每日2次', '早餐前血糖 6.0',                   3, CONCAT(DATE_SUB(CURDATE(), INTERVAL 2 DAY), ' 07:00:00'), NULL),
+(5, '康复训练', '每日1次', '腰背肌功能锻炼 15 分钟',           3, CONCAT(DATE_SUB(CURDATE(), INTERVAL 2 DAY), ' 10:00:00'), NULL),
+(1, '喂饭', '每日三餐',    '早餐粥类，食欲良好',               2, CONCAT(DATE_SUB(CURDATE(), INTERVAL 3 DAY), ' 07:30:00'), NULL),
+(2, '血糖监测', '每日2次', '晚餐后血糖 6.8',                   3, CONCAT(DATE_SUB(CURDATE(), INTERVAL 3 DAY), ' 19:00:00'), NULL),
+(4, '康复训练', '每日1次', '下肢肌力训练 15 分钟',             2, CONCAT(DATE_SUB(CURDATE(), INTERVAL 3 DAY), ' 09:30:00'), NULL),
+(1, '翻身', '每2小时一次', '协助翻身，皮肤状况良好',           2, CONCAT(DATE_SUB(CURDATE(), INTERVAL 4 DAY), ' 08:30:00'), NULL),
+(2, '洗澡', '每周2次',     '协助淋浴，状态良好',               3, CONCAT(DATE_SUB(CURDATE(), INTERVAL 4 DAY), ' 15:00:00'), NULL),
+(1, '喂饭', '每日三餐',    '晚餐粥类，进食量正常',             2, CONCAT(DATE_SUB(CURDATE(), INTERVAL 5 DAY), ' 18:00:00'), NULL),
+(2, '血糖监测', '每日2次', '早餐前血糖 6.2',                   3, CONCAT(DATE_SUB(CURDATE(), INTERVAL 5 DAY), ' 07:00:00'), NULL),
+(5, '康复训练', '每日1次', '腰背肌功能锻炼 20 分钟',           3, CONCAT(DATE_SUB(CURDATE(), INTERVAL 5 DAY), ' 10:00:00'), NULL),
+(1, '翻身', '每2小时一次', '协助翻身并检查皮肤状况',           2, CONCAT(DATE_SUB(CURDATE(), INTERVAL 6 DAY), ' 08:30:00'), NULL),
+(4, '康复训练', '每日1次', '上肢抬举训练 15 分钟',             2, CONCAT(DATE_SUB(CURDATE(), INTERVAL 6 DAY), ' 09:30:00'), NULL),
+(2, '血糖监测', '每日2次', '午餐前血糖 5.8',                   3, CONCAT(DATE_SUB(CURDATE(), INTERVAL 7 DAY), ' 11:30:00'), NULL),
+(1, '喂饭', '每日三餐',    '早餐粥类，食欲良好',               2, CONCAT(DATE_SUB(CURDATE(), INTERVAL 7 DAY), ' 07:30:00'), NULL),
+(5, '康复训练', '每日1次', '腰背肌功能锻炼 15 分钟',           3, CONCAT(DATE_SUB(CURDATE(), INTERVAL 8 DAY), ' 10:00:00'), NULL),
+(1, '翻身', '每2小时一次', '协助翻身，皮肤状况良好',           2, CONCAT(DATE_SUB(CURDATE(), INTERVAL 8 DAY), ' 08:30:00'), NULL),
+(2, '血糖监测', '每日2次', '晚餐后血糖 6.5',                   3, CONCAT(DATE_SUB(CURDATE(), INTERVAL 9 DAY), ' 19:00:00'), NULL),
+(4, '康复训练', '每日1次', '下肢肌力训练 20 分钟',             2, CONCAT(DATE_SUB(CURDATE(), INTERVAL 9 DAY), ' 09:30:00'), NULL),
+(1, '喂饭', '每日三餐',    '晚餐粥类，进食量正常',             2, CONCAT(DATE_SUB(CURDATE(), INTERVAL 10 DAY), ' 18:00:00'), NULL),
+(2, '血糖监测', '每日2次', '早餐前血糖 6.1',                   3, CONCAT(DATE_SUB(CURDATE(), INTERVAL 11 DAY), ' 07:00:00'), NULL),
+(1, '翻身', '每2小时一次', '协助翻身并检查皮肤状况',           2, CONCAT(DATE_SUB(CURDATE(), INTERVAL 12 DAY), ' 08:30:00'), NULL),
+(5, '康复训练', '每日1次', '腰背肌功能锻炼 20 分钟',           3, CONCAT(DATE_SUB(CURDATE(), INTERVAL 12 DAY), ' 10:00:00'), NULL),
+(2, '洗澡', '每周2次',     '协助淋浴，状态良好',               3, CONCAT(DATE_SUB(CURDATE(), INTERVAL 13 DAY), ' 15:00:00'), NULL),
+(4, '康复训练', '每日1次', '上肢抬举训练 20 分钟',             2, CONCAT(DATE_SUB(CURDATE(), INTERVAL 14 DAY), ' 09:30:00'), NULL),
+(1, '喂饭', '每日三餐',    '早餐粥类，食欲良好',               2, CONCAT(DATE_SUB(CURDATE(), INTERVAL 14 DAY), ' 07:30:00'), NULL),
+(2, '血糖监测', '每日2次', '午餐前血糖 6.3',                   3, CONCAT(DATE_SUB(CURDATE(), INTERVAL 15 DAY), ' 11:30:00'), NULL),
+(1, '翻身', '每2小时一次', '协助翻身，皮肤状况良好',           2, CONCAT(DATE_SUB(CURDATE(), INTERVAL 16 DAY), ' 08:30:00'), NULL),
+(5, '康复训练', '每日1次', '腰背肌功能锻炼 15 分钟',           3, CONCAT(DATE_SUB(CURDATE(), INTERVAL 17 DAY), ' 10:00:00'), NULL),
+(2, '血糖监测', '每日2次', '早餐前血糖 6.0',                   3, CONCAT(DATE_SUB(CURDATE(), INTERVAL 18 DAY), ' 07:00:00'), NULL),
+(1, '喂饭', '每日三餐',    '晚餐粥类，进食量正常',             2, CONCAT(DATE_SUB(CURDATE(), INTERVAL 19 DAY), ' 18:00:00'), NULL),
+(4, '康复训练', '每日1次', '下肢肌力训练 15 分钟',             2, CONCAT(DATE_SUB(CURDATE(), INTERVAL 20 DAY), ' 09:30:00'), NULL),
+(2, '血糖监测', '每日2次', '晚餐后血糖 6.6',                   3, CONCAT(DATE_SUB(CURDATE(), INTERVAL 21 DAY), ' 19:00:00'), NULL),
+(1, '翻身', '每2小时一次', '协助翻身并检查皮肤状况',           2, CONCAT(DATE_SUB(CURDATE(), INTERVAL 22 DAY), ' 08:30:00'), NULL),
+(5, '康复训练', '每日1次', '腰背肌功能锻炼 20 分钟',           3, CONCAT(DATE_SUB(CURDATE(), INTERVAL 23 DAY), ' 10:00:00'), NULL),
+(2, '血糖监测', '每日2次', '午餐前血糖 6.4',                   3, CONCAT(DATE_SUB(CURDATE(), INTERVAL 24 DAY), ' 11:30:00'), NULL),
+(1, '喂饭', '每日三餐',    '早餐粥类，食欲良好',               2, CONCAT(DATE_SUB(CURDATE(), INTERVAL 26 DAY), ' 07:30:00'), NULL),
+(2, '血糖监测', '每日2次', '早餐前血糖 6.2',                   3, CONCAT(DATE_SUB(CURDATE(), INTERVAL 28 DAY), ' 07:00:00'), NULL),
+(1, '翻身', '每2小时一次', '协助翻身，皮肤状况良好',           2, CONCAT(DATE_SUB(CURDATE(), INTERVAL 29 DAY), ' 08:30:00'), NULL);
 
-INSERT INTO health_record (elder_id, blood_pressure, heart_rate, temperature, blood_sugar, record_time, recorder_id) VALUES
-(1, '128/82', 76, 36.5, NULL, '2026-08-14 08:00:00', 2),
-(1, '130/85', 78, 36.4, NULL, '2026-08-15 08:00:00', 2),
-(1, '126/80', 74, 36.6, NULL, '2026-08-16 08:00:00', 2),
-(2, '118/75', 70, 36.4, 6.1,  '2026-08-16 07:00:00', 3);
+-- 健康体征记录（近 10 天，用于体征趋势图）
+INSERT INTO health_record (elder_id, blood_pressure, heart_rate, temperature, blood_sugar, record_time, recorder_id, remark) VALUES
+(1, '118/78', 72, 36.4, NULL, CONCAT(DATE_SUB(CURDATE(), INTERVAL 9 DAY), ' 08:00:00'), 2, NULL),
+(1, '126/80', 75, 36.5, NULL, CONCAT(DATE_SUB(CURDATE(), INTERVAL 8 DAY), ' 08:00:00'), 2, NULL),
+(1, '130/84', 78, 36.4, NULL, CONCAT(DATE_SUB(CURDATE(), INTERVAL 7 DAY), ' 08:00:00'), 2, NULL),
+(1, '122/79', 74, 36.6, NULL, CONCAT(DATE_SUB(CURDATE(), INTERVAL 6 DAY), ' 08:00:00'), 2, NULL),
+(1, '128/82', 76, 36.5, NULL, CONCAT(DATE_SUB(CURDATE(), INTERVAL 5 DAY), ' 08:00:00'), 2, '晨起测量'),
+(1, '124/78', 73, 36.4, NULL, CONCAT(DATE_SUB(CURDATE(), INTERVAL 4 DAY), ' 08:00:00'), 2, NULL),
+(1, '120/76', 71, 36.5, NULL, CONCAT(DATE_SUB(CURDATE(), INTERVAL 3 DAY), ' 08:00:00'), 2, NULL),
+(1, '126/80', 74, 36.4, NULL, CONCAT(DATE_SUB(CURDATE(), INTERVAL 2 DAY), ' 08:00:00'), 2, NULL),
+(1, '130/85', 78, 36.5, NULL, CONCAT(DATE_SUB(CURDATE(), INTERVAL 1 DAY), ' 08:00:00'), 2, NULL),
+(1, '128/82', 76, 36.6, NULL, CONCAT(DATE_SUB(CURDATE(), INTERVAL 0 DAY), ' 08:00:00'), 2, NULL),
+(2, '116/74', 70, 36.4, 6.0,  CONCAT(DATE_SUB(CURDATE(), INTERVAL 8 DAY), ' 07:00:00'), 3, NULL),
+(2, '120/76', 72, 36.5, 5.9,  CONCAT(DATE_SUB(CURDATE(), INTERVAL 6 DAY), ' 07:00:00'), 3, NULL),
+(2, '118/75', 71, 36.4, 6.1,  CONCAT(DATE_SUB(CURDATE(), INTERVAL 4 DAY), ' 07:00:00'), 3, NULL),
+(2, '122/77', 73, 36.5, 6.0,  CONCAT(DATE_SUB(CURDATE(), INTERVAL 2 DAY), ' 07:00:00'), 3, NULL),
+(2, '118/75', 70, 36.4, 6.1,  CONCAT(DATE_SUB(CURDATE(), INTERVAL 0 DAY), ' 07:00:00'), 3, '空腹血糖'),
+(4, '135/88', 80, 36.5, NULL, CONCAT(DATE_SUB(CURDATE(), INTERVAL 7 DAY), ' 09:00:00'), 2, NULL),
+(4, '132/86', 79, 36.4, NULL, CONCAT(DATE_SUB(CURDATE(), INTERVAL 4 DAY), ' 09:00:00'), 2, NULL),
+(4, '130/85', 78, 36.5, NULL, CONCAT(DATE_SUB(CURDATE(), INTERVAL 1 DAY), ' 09:00:00'), 2, NULL),
+(5, '115/72', 65, 36.3, NULL, CONCAT(DATE_SUB(CURDATE(), INTERVAL 6 DAY), ' 10:00:00'), 3, NULL),
+(5, '118/75', 67, 36.4, NULL, CONCAT(DATE_SUB(CURDATE(), INTERVAL 3 DAY), ' 10:00:00'), 3, NULL),
+(5, '116/73', 66, 36.4, NULL, CONCAT(DATE_SUB(CURDATE(), INTERVAL 0 DAY), ' 10:00:00'), 3, NULL);
 
--- 张三：硝苯地平缓释片 每日2次（今天2行待执行、昨天1行已执行、前天1行待执行用于演示逾期扫描）
+-- 用药计划/任务（相对日期：有今日待执行、昨日已执行、前天待执行（将逾期）三种状态，便于演示）
 INSERT INTO medicine_plan (elder_id, medicine_name, dosage, plan_date, plan_time, status, confirm_time) VALUES
-(1, '硝苯地平缓释片', '每次1片', '2026-08-14', '08:00:00', 0, NULL),
-(1, '硝苯地平缓释片', '每次1片', '2026-08-15', '08:00:00', 1, '2026-08-15 08:06:00'),
-(1, '硝苯地平缓释片', '每次1片', '2026-08-16', '08:00:00', 0, NULL),
-(1, '硝苯地平缓释片', '每次1片', '2026-08-16', '14:00:00', 0, NULL),
-(2, '二甲双胍片',     '每次1片', '2026-08-16', '12:00:00', 0, NULL);
+-- 张三：硝苯地平缓释片 每日 2 次
+(1, '硝苯地平缓释片', '每次1片', DATE_SUB(CURDATE(), INTERVAL 2 DAY), '08:00:00', 0, NULL),
+(1, '硝苯地平缓释片', '每次1片', DATE_SUB(CURDATE(), INTERVAL 1 DAY), '08:00:00', 1, CONCAT(DATE_SUB(CURDATE(), INTERVAL 1 DAY), ' 07:54:00')),
+(1, '硝苯地平缓释片', '每次1片', DATE_SUB(CURDATE(), INTERVAL 1 DAY), '14:00:00', 0, NULL),
+(1, '硝苯地平缓释片', '每次1片', CURDATE(), '08:00:00', 0, NULL),
+(1, '硝苯地平缓释片', '每次1片', CURDATE(), '14:00:00', 0, NULL),
+-- 李秀英：二甲双胍片 每日 2 次；阿司匹林肠溶片 每日 1 次
+(2, '二甲双胍片', '每次1片', DATE_SUB(CURDATE(), INTERVAL 1 DAY), '12:00:00', 1, CONCAT(DATE_SUB(CURDATE(), INTERVAL 1 DAY), ' 12:00:00')),
+(2, '二甲双胍片', '每次1片', DATE_SUB(CURDATE(), INTERVAL 1 DAY), '20:00:00', 1, CONCAT(DATE_SUB(CURDATE(), INTERVAL 1 DAY), ' 19:50:00')),
+(2, '二甲双胍片', '每次1片', CURDATE(), '12:00:00', 0, NULL),
+(2, '二甲双胍片', '每次1片', CURDATE(), '20:00:00', 0, NULL),
+(2, '阿司匹林肠溶片', '每次1片', DATE_SUB(CURDATE(), INTERVAL 1 DAY), '09:00:00', 1, CONCAT(DATE_SUB(CURDATE(), INTERVAL 1 DAY), ' 09:00:00')),
+(2, '阿司匹林肠溶片', '每次1片', CURDATE(), '09:00:00', 0, NULL);
 
+-- 探访预约（待审核 / 已通过 / 已驳回 / 已完成 各状态均有）
 INSERT INTO visit_appointment (elder_id, family_id, visit_date, visit_time, persons, status, audit_remark) VALUES
-(1, 4, '2026-08-20', '上午 9:00-11:00', 2, 0, NULL),
-(2, 5, '2026-08-18', '下午 14:00-16:00', 1, 1, '同意探望'),
-(1, 4, '2026-08-10', '上午 9:00-11:00', 2, 3, NULL);
+(1, 4, DATE_ADD(CURDATE(), INTERVAL 4 DAY), '上午 9:00-11:00',  2, 0, NULL),
+(1, 4, DATE_ADD(CURDATE(), INTERVAL 1 DAY), '下午 14:00-16:00', 5, 2, '探访人数过多，请改约其它时段'),
+(2, 5, DATE_ADD(CURDATE(), INTERVAL 2 DAY), '下午 14:00-16:00', 1, 1, '同意探望'),
+(1, 4, DATE_SUB(CURDATE(), INTERVAL 3 DAY), '上午 9:00-11:00',  2, 3, NULL),
+(2, 5, DATE_SUB(CURDATE(), INTERVAL 8 DAY), '上午 9:00-11:00',  1, 3, NULL);
 
+-- 家属留言（未回复 / 已回复）
 INSERT INTO message (elder_id, family_id, content, reply, reply_time, status) VALUES
-(1, 4, '父亲最近睡得好吗？', '睡得不错，白天精神也很好，请放心', '2026-08-15 10:00:00', 1),
-(2, 5, '今天血糖测了吗？', NULL, NULL, 0);
+(1, 4, '父亲最近睡得好吗？', '睡得不错，白天精神也很好，请放心', DATE_SUB(NOW(), INTERVAL 1 DAY), 1),
+(1, 4, '本周六想带父亲外出散步，可以吗？', NULL, NULL, 0),
+(2, 5, '今天血糖测了吗？', NULL, NULL, 0),
+(2, 5, '老妈说要换个软一点的枕头，麻烦安排一下', '已安排新的软枕，请放心', DATE_SUB(NOW(), INTERVAL 2 DAY), 1);
 
-INSERT INTO sys_log (user_id, username, operation, method, params, ip) VALUES
-(1, 'admin',    '新增老人',   'POST /api/elders',  '{"name":"张三"}',   '127.0.0.1'),
-(2, 'nurse01',  '新增护理记录', 'POST /api/care-records', '{"elderId":1,"planName":"翻身"}', '127.0.0.1'),
-(1, 'admin',    '探访审核',   'PUT /api/visits/2/audit', '{"status":1}', '127.0.0.1');
+-- 操作日志（演示）
+INSERT INTO sys_log (user_id, username, operation, method, params, ip, create_time) VALUES
+(1, 'admin',   '新增老人',     'POST /api/elders',          '{"name":"张三"}',              '127.0.0.1', DATE_SUB(NOW(), INTERVAL 1 DAY)),
+(2, 'nurse01', '新增护理记录', 'POST /api/care-records',    '{"elderId":1,"planName":"翻身"}', '127.0.0.1', DATE_SUB(NOW(), INTERVAL 2 HOUR)),
+(1, 'admin',   '探访审核',     'PUT /api/visits/2/audit',   '{"status":1}',                 '127.0.0.1', DATE_SUB(NOW(), INTERVAL 5 HOUR)),
+(3, 'nurse02', '新增体征记录', 'POST /api/health-records',  '{"elderId":2,"bloodPressure":"118/75"}', '127.0.0.1', DATE_SUB(NOW(), INTERVAL 3 HOUR)),
+(1, 'admin',   '重置密码',     'PUT /api/users/5/password', '{}',                           '127.0.0.1', DATE_SUB(NOW(), INTERVAL 1 DAY));

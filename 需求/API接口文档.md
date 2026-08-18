@@ -128,8 +128,10 @@
 `PUT /users/{id}`　权限：admin
 
 ```json
-{ "realName": "王护士", "role": "nurse", "phone": "13800000001", "status": 1 }
+{ "username": "nurse01", "realName": "王护士", "role": "nurse", "phone": "13800000001", "status": 1 }
 ```
+
+说明：`username` 必填（参数校验要求），但服务端不允许修改用户名，需原样传回。
 
 ### 3.4 删除用户
 
@@ -296,11 +298,12 @@
 `GET /medicine-plans?elderId=`　在用药计划列表　权限：admin、nurse
 
 `PUT /medicine-plans/{id}/disable`　停用计划　权限：nurse
-说明：停用 = 删除该老人 `plan_date >= 今天` 的任务行（历史行保留作为档案），次日查询不再自动延续。
+说明：停用 = 删除该老人该药 `plan_date >= 今天` 的任务行（历史行保留作为档案），并把历史行 `disabled` 置 1。若只删行，次日查询的"按需生成"逻辑会从历史行重新复制出新任务，故用 `disabled` 标记阻断延续（详见《系统设计文档》2.4 节）。
 
 ### 7.4 用药任务（admin、nurse）
 
-`GET /medicine-tasks?date=2026-08-16&elderId=&status=`　当日/指定日任务列表
+`GET /medicine-tasks?date=2026-08-16&elderId=`　当日/指定日任务列表
+参数：`date` 可选（缺省为今天）、`elderId` 可选（缺省查全部老人）。
 说明：查询时按需生成当日任务并执行逾期扫描（见《需求分析文档》4.2 节）。
 
 `PUT /medicine-tasks/{id}/complete`　确认执行　权限：nurse
@@ -378,14 +381,24 @@ family 仅返回关联老人的留言；admin、nurse 返回全部。
 
 ### 10.1 看板总览
 
-`GET /stats/overview`
+`GET /stats/overview`　权限：admin
 
 ```json
 {
-  "elderTotal": 86, "inHouse": 78, "roomTotal": 100, "checkInRate": 78.0,
-  "todayCareCount": 42, "todayVisitCount": 5, "overdueTaskCount": 2
+  "elderTotal": 5, "inHouse": 4, "roomTotal": 4, "checkInRate": 80.0,
+  "todayCareCount": 3, "todayVisitCount": 0, "overdueTaskCount": 2
 }
 ```
+
+| 字段 | 说明 |
+|------|------|
+| elderTotal | 老人总数（含已退住） |
+| inHouse | 在住老人数 |
+| roomTotal | 在住老人占用的房间数（房间号去重，系统未单独建房间表） |
+| checkInRate | 入住率 = 在住数 / 老人总数 × 100，保留 1 位小数 |
+| todayCareCount | 今日护理记录数（按 care_time 统计） |
+| todayVisitCount | 今日探访预约数（按 visit_date 统计） |
+| overdueTaskCount | 逾期用药任务数（plan_date 早于今天且状态=待执行） |
 
 ### 10.2 老人年龄分布
 

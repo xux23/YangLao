@@ -1,37 +1,46 @@
 <template>
   <el-container class="layout">
-    <!-- 左侧菜单 -->
+    <!-- 左侧：品牌 + 菜单 -->
     <el-aside width="220px" class="aside">
-      <div class="logo">
-        <el-icon size="24"><FirstAidKit /></el-icon>
-        <span>养老机构管理系统</span>
+      <div class="brand">
+        <div class="brand-mark">
+          <el-icon :size="22"><Sunny /></el-icon>
+        </div>
+        <div class="brand-name">养老机构管理系统</div>
       </div>
-      <el-menu
-        :default-active="$route.path"
-        router
-        background-color="#1f2d3d"
-        text-color="#a7b1c2"
-        active-text-color="#409EFF"
-      >
-        <template v-for="item in menuList" :key="item.path">
-          <el-menu-item :index="item.path">
-            <el-icon><component :is="item.icon" /></el-icon>
-            <span>{{ item.title }}</span>
-          </el-menu-item>
-        </template>
-      </el-menu>
+
+      <nav class="menu">
+        <router-link
+          v-for="item in menuList"
+          :key="item.path"
+          :to="item.path"
+          class="menu-item"
+          :class="{ active: route.path === item.path }"
+        >
+          <el-icon :size="17"><component :is="item.icon" /></el-icon>
+          <span>{{ item.title }}</span>
+          <i class="active-dot" />
+        </router-link>
+      </nav>
+
+      <div class="aside-footer">老有所养 · 老有所依</div>
     </el-aside>
 
     <el-container>
-      <!-- 顶部栏 -->
+      <!-- 顶部：页面标题 + 用户区 -->
       <el-header class="header">
-        <div class="header-title">{{ currentTitle }}</div>
+        <span class="page-title">{{ currentTitle }}</span>
         <div class="header-right">
-          <span class="role-tag">{{ roleName }}</span>
+          <span class="role-tag" :style="{ background: roleMeta.bg, color: roleMeta.color }">
+            {{ roleMeta.name }}
+          </span>
           <el-dropdown @command="handleCommand">
-            <span class="user-name">
-              {{ userStore.realName || userStore.user.username }}
-              <el-icon><ArrowDown /></el-icon>
+            <span class="user-chip">
+              <span class="avatar" :style="{ background: roleMeta.grad }">
+                {{ (userStore.realName || userStore.user?.username || '?').charAt(0) }}
+              </span>
+              <span class="user-name">{{ userStore.realName || userStore.user?.username }}</span>
+              <el-icon :size="12"><ArrowDown /></el-icon>
             </span>
             <template #dropdown>
               <el-dropdown-menu>
@@ -74,7 +83,7 @@
 import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowDown, FirstAidKit } from '@element-plus/icons-vue'
+import { ArrowDown, Sunny } from '@element-plus/icons-vue'
 import { useUserStore } from '../../store/user'
 import { changePassword } from '../../api/auth'
 
@@ -82,7 +91,7 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 
-// 不同角色的菜单
+// 不同角色的菜单（按角色过滤）
 const allMenus = {
   admin: [
     { path: '/dashboard', title: '首页看板', icon: 'DataAnalysis' },
@@ -114,15 +123,17 @@ const allMenus = {
 }
 
 const menuList = computed(() => allMenus[userStore.role] || [])
-const roleName = computed(() => ({
-  admin: '管理员',
-  nurse: '护理人员',
-  family: '家属'
-})[userStore.role] || '')
+
+// 角色徽章：颜色随角色区分
+const roleMeta = computed(() => ({
+  admin: { name: '管理员', bg: '#faeede', color: '#b9551f', grad: 'linear-gradient(135deg,#e08a54,#c2571f)' },
+  nurse: { name: '护理人员', bg: '#e8f0ec', color: '#2f5d50', grad: 'linear-gradient(135deg,#4d8273,#2f5d50)' },
+  family: { name: '家属', bg: '#eef0f8', color: '#5a6dbf', grad: 'linear-gradient(135deg,#8b9ad6,#5a6dbf)' }
+})[userStore.role] || { name: '', bg: '#f1ebdd', color: '#6f675d', grad: '#b3a893' })
 
 const currentTitle = computed(() => route.meta.title || '')
 
-// 退出登录
+// 退出登录 / 修改密码
 function handleCommand(command) {
   if (command === 'logout') {
     ElMessageBox.confirm('确定要退出登录吗？', '提示', { type: 'warning' })
@@ -190,64 +201,167 @@ async function handleChangePassword() {
   height: 100%;
 }
 
+/* ---------- 侧边栏 ---------- */
 .aside {
-  background-color: #1f2d3d;
+  display: flex;
+  flex-direction: column;
+  background: #fbf8f1;
+  border-right: 1px solid var(--line);
 }
 
-.logo {
-  height: 60px;
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+}
+
+.brand-mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
   color: #fff;
+  background: linear-gradient(135deg, #e08a54, #c2571f);
+  box-shadow: 0 6px 14px -4px rgba(194, 87, 31, 0.45);
+  flex-shrink: 0;
+}
+
+.brand-name {
+  font-family: var(--font-display);
   font-size: 16px;
-  font-weight: bold;
-  background-color: #1a2533;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: 1px;
+  white-space: nowrap;
 }
 
-.aside .el-menu {
-  border-right: none;
+.menu {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0 10px;
 }
 
+.menu-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 42px;
+  margin: 2px 12px;
+  padding: 0 14px;
+  border-radius: 11px;
+  font-size: 14px;
+  color: #6a6257;
+  transition: background 0.2s, color 0.2s;
+}
+
+.menu-item:hover {
+  background: #f3ecdd;
+  color: var(--ink);
+}
+
+.menu-item.active {
+  background: linear-gradient(90deg, #fbe9d8, #fdf4e9);
+  color: var(--brand-deep);
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px #f2d9c2;
+}
+
+.active-dot {
+  position: absolute;
+  right: 14px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brand);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.menu-item.active .active-dot {
+  opacity: 1;
+}
+
+.aside-footer {
+  padding: 14px 0 18px;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #c0b5a0;
+}
+
+/* ---------- 顶栏 ---------- */
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #fff;
-  border-bottom: 1px solid #e6e6e6;
+  height: 60px;
+  padding: 0 28px;
+  background: rgba(255, 253, 248, 0.75);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
 }
 
-.header-title {
-  font-size: 16px;
-  font-weight: bold;
-  color: #333;
+.page-title {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: 1px;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .role-tag {
-  padding: 2px 10px;
-  border-radius: 10px;
+  padding: 3px 12px;
+  border-radius: 999px;
   font-size: 12px;
-  color: #2b6cb0;
-  background: #e8f1fb;
+  font-weight: 600;
 }
 
-.user-name {
+.user-chip {
   cursor: pointer;
   display: flex;
   align-items: center;
-  color: #333;
+  gap: 8px;
+  padding: 4px 10px 4px 4px;
+  border-radius: 999px;
+  transition: background 0.2s;
 }
 
+.user-chip:hover {
+  background: #f3ecdd;
+}
+
+.avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.user-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+/* ---------- 主内容 ---------- */
 .main {
-  background: #f0f2f5;
-  padding: 16px;
+  background: var(--cream);
+  padding: 22px 26px 30px;
   overflow: auto;
 }
 </style>

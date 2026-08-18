@@ -1,0 +1,927 @@
+{
+  "info": {
+    "name": "养老机构管理系统 API 测试集合",
+    "description": "基于《需求/API接口文档.md》与后端代码生成的 Apifox 测试数据。\n\n使用说明：\n1. 先在【认证 → 登录（admin）】运行一次，测试脚本会自动把 token 写入集合变量，其余接口无需手工填令牌；\n2. 科室/护理/家属角色接口请在头部用对应账号登录：nurse01、family01（密码均 123456）；\n3. 演示数据中老人 id 1~5、用户 id 1~5、留言 id 1~4、探访 id 1~5（以 init.sql 导入后的数据为准）；\n4. 标注【需替换 id】的地址，请先把列表/任务接口跑一遍，用返回的 id 替换 {} 再发送。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080", "type": "string" },
+    { "key": "token", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "认证",
+      "item": [
+        {
+          "name": "登录（admin）→ 自动写入 token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"123456\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "登录签发 JWT。响应 data 含 token 与 user 信息。测试脚本自动保存 token 到集合变量 {{token}}；换角色测试时改为 nurse01 / family01 再运行一次即可。"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.code === 200) {",
+                  "  pm.collectionVariables.set('token', res.data.token);",
+                  "  console.log('登录成功：' + res.data.user.username + '（' + res.data.user.role + '），token 已写入集合变量');",
+                  "} else {",
+                  "  console.log('登录失败：' + res.message);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "获取当前用户信息",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "me"]
+            },
+            "description": "GET /auth/me　权限：登录用户。返回当前用户（不含密码字段）。"
+          },
+          "response": []
+        },
+        {
+          "name": "修改密码",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"oldPassword\": \"123456\",\n  \"newPassword\": \"654321\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/password",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "password"]
+            },
+            "description": "PUT /auth/password　权限：登录用户。新密码 6~20 位；改完需重新登录。演示环境密码改回去用 123456。"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "用户管理（admin）",
+      "item": [
+        {
+          "name": "用户分页列表",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/users?page=1&size=10&username=&role=nurse",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "size", "value": "10" },
+                { "key": "username", "value": "", "description": "可选，模糊查询" },
+                { "key": "role", "value": "nurse", "description": "可选：admin/nurse/family" }
+              ]
+            },
+            "description": "GET /users　权限：admin。"
+          },
+          "response": []
+        },
+        {
+          "name": "新增用户",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"nurse_test\",\n  \"password\": \"123456\",\n  \"realName\": \"测试护士\",\n  \"role\": \"nurse\",\n  \"phone\": \"13800001111\",\n  \"status\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users"]
+            },
+            "description": "POST /users　权限：admin。用户名唯一；新增时 status 不填默认 1（启用）。"
+          },
+          "response": []
+        },
+        {
+          "name": "修改用户",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"nurse_test\",\n  \"realName\": \"王护士\",\n  \"role\": \"nurse\",\n  \"phone\": \"13800002222\",\n  \"status\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/6",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "6"]
+            },
+            "description": "PUT /users/{id}　权限：admin。username 必填但不可修改（需原样传回）；{id} 用列表返回的 id 替换。"
+          },
+          "response": []
+        },
+        {
+          "name": "删除用户",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/6",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "6"]
+            },
+            "description": "DELETE /users/{id}　权限：admin。不能删除自己；删除家属账号会同步解除其与老人的关联。"
+          },
+          "response": []
+        },
+        {
+          "name": "重置密码（重置为 123456）",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/2/password",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "2", "password"]
+            },
+            "description": "PUT /users/{id}/password　权限：admin。把用户 2（nurse01）密码重置为默认密码 123456。"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "操作日志（admin）",
+      "item": [
+        {
+          "name": "日志分页查询",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/logs?page=1&size=10&username=&startTime=&endTime=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "logs"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "size", "value": "10" },
+                { "key": "username", "value": "", "description": "可选，按操作人筛选" },
+                { "key": "startTime", "value": "", "description": "可选，yyyy-MM-dd HH:mm:ss" },
+                { "key": "endTime", "value": "", "description": "可选，yyyy-MM-dd HH:mm:ss" }
+              ]
+            },
+            "description": "GET /logs　权限：admin。AOP 切面自动记录写操作（操作人/接口/IP/参数截断）。先做几个新增/修改操作再查询，可以看到日志增长。"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "老人档案（admin、nurse；家属仅关联老人）",
+      "item": [
+        {
+          "name": "老人分页列表",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/elders?page=1&size=10&name=&roomNo=&status=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "elders"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "size", "value": "10" },
+                { "key": "name", "value": "", "description": "可选，姓名模糊查询" },
+                { "key": "roomNo", "value": "", "description": "可选，房间号" },
+                { "key": "status", "value": "", "description": "可选，1 在住 / 0 已退住" }
+              ]
+            },
+            "description": "GET /elders　权限：admin、nurse。"
+          },
+          "response": []
+        },
+        {
+          "name": "家属查看自己关联的老人 /elders/my",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/elders/my",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "elders", "my"]
+            },
+            "description": "GET /elders/my　权限：family。先用 family01 登录再调用；返回关联老人档案，未关联老人返回 400。"
+          },
+          "response": []
+        },
+        {
+          "name": "老人详情",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/elders/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "elders", "1"]
+            },
+            "description": "GET /elders/{id}　权限：admin、nurse、family（家属仅限关联老人，越权返回 403）。演示数据：1 张三（family01 的张父）、2 李秀英（family02 的母亲）。"
+          },
+          "response": []
+        },
+        {
+          "name": "新增老人",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"测试老人\",\n  \"gender\": 1,\n  \"birthday\": \"1950-01-01\",\n  \"idCard\": \"420000195001010066\",\n  \"phone\": \"13900000066\",\n  \"emergencyContact\": \"测试家属\",\n  \"emergencyPhone\": \"13900000067\",\n  \"healthSummary\": \"测试数据，无特殊病史\",\n  \"familyId\": null\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/elders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "elders"]
+            },
+            "description": "POST /elders　权限：admin、nurse。身份证号唯一；新增后默认在住（1），房间床位通过入住登记分配。"
+          },
+          "response": []
+        },
+        {
+          "name": "修改老人",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"测试老人\",\n  \"gender\": 1,\n  \"birthday\": \"1950-01-01\",\n  \"idCard\": \"420000195001010067\",\n  \"phone\": \"13900000068\",\n  \"emergencyContact\": \"测试家属\",\n  \"emergencyPhone\": \"13900000069\",\n  \"healthSummary\": \"测试数据，已修改\",\n  \"familyId\": null\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/elders/6",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "elders", "6"]
+            },
+            "description": "PUT /elders/{id}　权限：admin、nurse。idCard 不传或传原值则保持不变（演示先删掉测试老人再跑，或在列表里取真实 id 替换）。"
+          },
+          "response": []
+        },
+        {
+          "name": "删除老人",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/elders/6",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "elders", "6"]
+            },
+            "description": "DELETE /elders/{id}　权限：admin。仅允许删除无业务数据关联的老人（1~5 号均有数据，会返回 400，用于验证防护）。"
+          },
+          "response": []
+        },
+        {
+          "name": "入住登记",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomNo\": \"301\",\n  \"bedNo\": \"A\",\n  \"checkinTime\": \"2026-08-01\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/elders/6/checkin",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "elders", "6", "checkin"]
+            },
+            "description": "POST /elders/{id}/checkin　权限：admin、nurse。登记后状态=1 在住；退住后可再次入住（覆盖房间床位）。"
+          },
+          "response": []
+        },
+        {
+          "name": "退住登记",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"checkoutTime\": \"2026-08-17\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/elders/6/checkout",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "elders", "6", "checkout"]
+            },
+            "description": "POST /elders/{id}/checkout　权限：admin、nurse。登记后状态=0 已退住，房间床位释放（置空），档案保留。"
+          },
+          "response": []
+        },
+        {
+          "name": "老人名单导出 Excel",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/elders/export?name=&status=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "elders", "export"],
+              "query": [
+                { "key": "name", "value": "", "description": "可选" },
+                { "key": "status", "value": "1", "description": "可选，1 在住 / 0 已退住" }
+              ]
+            },
+            "description": "GET /elders/export　权限：admin、nurse。响应为 .xlsx 文件流，Apifox 会在下方直接显示下载。"
+          },
+          "response": []
+        },
+        {
+          "name": "健康档案查询",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/elders/1/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "elders", "1", "health"]
+            },
+            "description": "GET /elders/{id}/health　权限：admin、nurse、family（家属仅限关联老人，family01 可查 1 号张三）。"
+          },
+          "response": []
+        },
+        {
+          "name": "修改健康档案",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"healthSummary\": \"高血压病史5年；青霉素过敏；忌服阿司匹林类\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/elders/1/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "elders", "1", "health"]
+            },
+            "description": "PUT /elders/{id}/health　权限：admin、nurse。健康档案存于 elder_info.health_summary 字段。"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "护理记录（admin、nurse；family 只读关联老人）",
+      "item": [
+        {
+          "name": "护理记录分页列表",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/care-records?page=1&size=10&elderId=&planName=&startTime=&endTime=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "care-records"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "size", "value": "10" },
+                { "key": "elderId", "value": "", "description": "可选" },
+                { "key": "planName", "value": "", "description": "可选，护理项目" },
+                { "key": "startTime", "value": "", "description": "可选，yyyy-MM-dd HH:mm:ss" },
+                { "key": "endTime", "value": "", "description": "可选" }
+              ]
+            },
+            "description": "GET /care-records　权限：admin、nurse、family（家属自动过滤为关联老人，family01 只能看到张三的记录）。"
+          },
+          "response": []
+        },
+        {
+          "name": "新增护理记录",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"elderId\": 1,\n  \"planName\": \"翻身\",\n  \"planFrequency\": \"每2小时一次\",\n  \"careContent\": \"协助翻身并检查皮肤状况，无压疮\",\n  \"remark\": \"夜间交接：注意腿部保暖\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/care-records",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "care-records"]
+            },
+            "description": "POST /care-records　权限：admin、nurse。执行时间默认为当前时间，操作人自动记录。"
+          },
+          "response": []
+        },
+        {
+          "name": "修改护理记录（仅当天）",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"elderId\": 1,\n  \"planName\": \"翻身\",\n  \"planFrequency\": \"每2小时一次\",\n  \"careContent\": \"协助翻身，皮肤状况良好\",\n  \"remark\": \"\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/care-records/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "care-records", "1"]
+            },
+            "description": "PUT /care-records/{id}　权限：admin、nurse。业务约束：仅可修改当天的记录（跨天返回 400）。{id} 用列表返回的记录 id 替换。"
+          },
+          "response": []
+        },
+        {
+          "name": "删除护理记录（仅当天）",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/care-records/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "care-records", "1"]
+            },
+            "description": "DELETE /care-records/{id}　权限：admin、nurse。仅当天记录可删。"
+          },
+          "response": []
+        },
+        {
+          "name": "护理记录导出 Excel",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/care-records/export?elderId=1&startTime=&endTime=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "care-records", "export"],
+              "query": [
+                { "key": "elderId", "value": "1", "description": "可选" },
+                { "key": "startTime", "value": "", "description": "可选" },
+                { "key": "endTime", "value": "", "description": "可选" }
+              ]
+            },
+            "description": "GET /care-records/export　权限：admin、nurse。返回 .xlsx 文件流。"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "健康管理",
+      "item": [
+        {
+          "name": "体征记录分页列表",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/health-records?page=1&size=10&elderId=1&startTime=&endTime=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health-records"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "size", "value": "10" },
+                { "key": "elderId", "value": "1", "description": "可选" },
+                { "key": "startTime", "value": "", "description": "可选" },
+                { "key": "endTime", "value": "", "description": "可选" }
+              ]
+            },
+            "description": "GET /health-records　权限：admin、nurse、family（family01 自动只看张三）。"
+          },
+          "response": []
+        },
+        {
+          "name": "新增体征记录",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"elderId\": 1,\n  \"bloodPressure\": \"128/82\",\n  \"heartRate\": 76,\n  \"temperature\": 36.5,\n  \"bloodSugar\": null,\n  \"remark\": \"晨起测量\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/health-records",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health-records"]
+            },
+            "description": "POST /health-records　权限：admin、nurse。至少填一项体征；bloodSugar 示例 6.1（mmol/L）。"
+          },
+          "response": []
+        },
+        {
+          "name": "修改体征记录",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"elderId\": 1,\n  \"bloodPressure\": \"125/85\",\n  \"heartRate\": 70,\n  \"temperature\": 36.6,\n  \"bloodSugar\": null,\n  \"remark\": \"午后复测\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/health-records/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health-records", "1"]
+            },
+            "description": "PUT /health-records/{id}　权限：admin、nurse。{id} 用列表返回的记录 id 替换。"
+          },
+          "response": []
+        },
+        {
+          "name": "删除体征记录",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/health-records/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health-records", "1"]
+            },
+            "description": "DELETE /health-records/{id}　权限：admin、nurse。"
+          },
+          "response": []
+        },
+        {
+          "name": "录入用药计划（生成当日任务）",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"elderId\": 1,\n  \"medicineName\": \"硝苯地平缓释片\",\n  \"dosage\": \"每次1片\",\n  \"times\": [\"08:00\", \"14:00\"]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/medicine-plans",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "medicine-plans"]
+            },
+            "description": "POST /medicine-plans　权限：nurse。为当天每个时间点生成一行任务；同一老人同一药同时间点重复录入会被跳过。演示数据已含该药，可换药名测试（如“测试药片”）。"
+          },
+          "response": []
+        },
+        {
+          "name": "在用药计划列表",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/medicine-plans?elderId=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "medicine-plans"],
+              "query": [{ "key": "elderId", "value": "1" }]
+            },
+            "description": "GET /medicine-plans　权限：admin、nurse。返回当前生效的用药方案（最近一天未停用的任务行）。"
+          },
+          "response": []
+        },
+        {
+          "name": "停用用药计划",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/medicine-plans/5/disable",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "medicine-plans", "5", "disable"]
+            },
+            "description": "PUT /medicine-plans/{id}/disable　权限：nurse。{id} 用计划列表返回的 id 替换（演示数据 5 号为张三今天 14:00 的任务行）。停用 = 删今天及以后任务行 + 历史行 disabled=1，次日不再自动延续。"
+          },
+          "response": []
+        },
+        {
+          "name": "查询当日用药任务（自动生成+逾期扫描）",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/medicine-tasks?date=&elderId=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "medicine-tasks"],
+              "query": [
+                { "key": "date", "value": "", "description": "可选，缺省为今天，格式 yyyy-MM-dd" },
+                { "key": "elderId", "value": "1", "description": "可选，缺省查全部老人" }
+              ]
+            },
+            "description": "GET /medicine-tasks　权限：admin、nurse。核心接口：查询时①把早于今天的待执行任务标为已逾期；②当天没有任务则按最近一天方案复制生成。"
+          },
+          "response": []
+        },
+        {
+          "name": "确认执行用药任务",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/medicine-tasks/4/complete",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "medicine-tasks", "4", "complete"]
+            },
+            "description": "PUT /medicine-tasks/{id}/complete　权限：nurse。{id} 用任务列表返回的待执行任务 id 替换（演示数据 4 号为张三今天 08:00 的任务行）。确认后状态=1 并记录 confirmTime。"
+          },
+          "response": []
+        },
+        {
+          "name": "逾期任务列表",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/medicine-tasks/overdue?elderId=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "medicine-tasks", "overdue"],
+              "query": [{ "key": "elderId", "value": "1", "description": "可选" }]
+            },
+            "description": "GET /medicine-tasks/overdue　权限：admin、nurse。查询前同样会执行逾期扫描；演示数据中前天 08:00 未执行的行已逾期。"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "探访管理",
+      "item": [
+        {
+          "name": "家属提交探访预约",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"elderId\": 1,\n  \"visitDate\": \"2026-08-20\",\n  \"visitTime\": \"上午 9:00-11:00\",\n  \"persons\": 2,\n  \"remark\": \"带水果探望\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/visits",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "visits"]
+            },
+            "description": "POST /visits　权限：family。需先用 family01 登录（自动绑定家属身份）；只能为关联的老人预约，预约日期不能早于今天。"
+          },
+          "response": []
+        },
+        {
+          "name": "探访预约列表",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/visits?page=1&size=10&status=&elderId=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "visits"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "size", "value": "10" },
+                { "key": "status", "value": "", "description": "可选，0 待审核 / 1 已通过 / 2 已驳回 / 3 已完成" },
+                { "key": "elderId", "value": "", "description": "可选" }
+              ]
+            },
+            "description": "GET /visits　权限：全部。家属只见自己的预约；admin、nurse 见全部（含老人/家属姓名）。"
+          },
+          "response": []
+        },
+        {
+          "name": "预约审核（通过/驳回）",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": 1,\n  \"auditRemark\": \"同意探望\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/visits/1/audit",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "visits", "1", "audit"]
+            },
+            "description": "PUT /visits/{id}/audit　权限：admin、nurse。status：1 通过 / 2 驳回（驳回时 auditRemark 必填，否则返回 400）；已审核的预约不可重复审核。{id} 用列表返回的待审核 id 替换（演示数据 1 号为待审核）。"
+          },
+          "response": []
+        },
+        {
+          "name": "标记探访完成",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/visits/3/finish",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "visits", "3", "finish"]
+            },
+            "description": "PUT /visits/{id}/finish　权限：admin、nurse。仅“已通过(1)”的预约可标记为完成(3)；演示数据 3 号（李秀英的预约）已通过。"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "留言管理",
+      "item": [
+        {
+          "name": "家属发表留言",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"elderId\": 1,\n  \"content\": \"父亲最近睡得好吗？\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messages"]
+            },
+            "description": "POST /messages　权限：family。需先用 family01 登录；家属只能给关联的老人留言。"
+          },
+          "response": []
+        },
+        {
+          "name": "留言列表",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/messages?page=1&size=10&status=&elderId=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messages"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "size", "value": "10" },
+                { "key": "status", "value": "", "description": "可选，0 未回复 / 1 已回复" },
+                { "key": "elderId", "value": "", "description": "可选" }
+              ]
+            },
+            "description": "GET /messages　权限：全部。家属只看关联老人的留言；admin、nurse 看全部。"
+          },
+          "response": []
+        },
+        {
+          "name": "机构回复留言",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reply\": \"睡得不错，请放心\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/messages/2/reply",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messages", "2", "reply"]
+            },
+            "description": "PUT /messages/{id}/reply　权限：admin、nurse。{id} 用留言列表返回的未回复 id 替换（演示数据 2 号“周六外出散步”未回复）。已回复的留言不可重复回复。"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "统计看板（admin；体征趋势开放家属关联老人）",
+      "item": [
+        {
+          "name": "看板总览",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/stats/overview",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "stats", "overview"]
+            },
+            "description": "GET /stats/overview　权限：admin。返回老人总数/在住数/去重房间数/入住率（在住÷总数×100）/今日护理/今日探访/逾期任务数。"
+          },
+          "response": []
+        },
+        {
+          "name": "老人年龄分布",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/stats/age-distribution",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "stats", "age-distribution"]
+            },
+            "description": "GET /stats/age-distribution　权限：admin。categories 固定 60-69/70-79/80-89/90+，无数据补 0。"
+          },
+          "response": []
+        },
+        {
+          "name": "近 30 天护理/探访趋势",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/stats/activity-trend?days=30",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "stats", "activity-trend"],
+              "query": [{ "key": "days", "value": "30", "description": "1~90" }]
+            },
+            "description": "GET /stats/activity-trend　权限：admin。dates 从（今天-days+1）到今天，无数据日期补 0。"
+          },
+          "response": []
+        },
+        {
+          "name": "老人体征趋势（家属限关联老人）",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/stats/elder/1/health-trend?days=30&metric=bloodPressure",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "stats", "elder", "1", "health-trend"],
+              "query": [
+                { "key": "days", "value": "30" },
+                { "key": "metric", "value": "bloodPressure", "description": "bloodPressure / heartRate / temperature / bloodSugar" }
+              ]
+            },
+            "description": "GET /stats/elder/{id}/health-trend　权限：admin、nurse、family（家属仅限关联老人，越权 403）。血压返回 “128/82” 字符串，前端拆两条线。"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
