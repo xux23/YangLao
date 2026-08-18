@@ -225,12 +225,38 @@ function renderTrend(dates, values) {
     series = [{ name: metricName[metric.value], type: 'line', smooth: true, data: values }]
   }
   trendChart.setOption({
+    color: ['#d96f3a', '#3f7d6b'],
     tooltip: { trigger: 'axis' },
-    legend: series.length > 1 ? { data: ['收缩压', '舒张压'] } : undefined,
+    legend: series.length > 1 ? { data: ['收缩压', '舒张压'], icon: 'circle', itemWidth: 8 } : undefined,
     grid: { left: 45, right: 20, top: 40, bottom: 30 },
-    xAxis: { type: 'category', data: dates },
-    yAxis: { type: 'value' },
-    series
+    xAxis: {
+      type: 'category',
+      boundaryGap: false,
+      data: dates,
+      axisLine: { lineStyle: { color: '#d8ceba' } },
+      axisLabel: { color: '#8b8175' }
+    },
+    yAxis: {
+      type: 'value',
+      splitLine: { lineStyle: { color: '#efe8da', type: 'dashed' } },
+      axisLabel: { color: '#8b8175' }
+    },
+    series: series.map((s, i) => ({
+      ...s,
+      symbol: 'circle',
+      symbolSize: 6,
+      showSymbol: false,
+      lineStyle: { width: 3 },
+      areaStyle: {
+        color: {
+          type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [
+            { offset: 0, color: i === 0 ? 'rgba(217,111,58,0.2)' : 'rgba(63,125,107,0.18)' },
+            { offset: 1, color: 'rgba(255,255,255,0)' }
+          ]
+        }
+      }
+    }))
   }, true)
 }
 
