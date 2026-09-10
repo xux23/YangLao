@@ -20,6 +20,24 @@
             :prefix-icon="Lock"
           />
         </el-form-item>
+        <el-form-item prop="captchaCode">
+          <div class="captcha-row">
+            <el-input
+              v-model="form.captchaCode"
+              placeholder="请输入验证码"
+              :prefix-icon="Key"
+              maxlength="4"
+            />
+            <img
+              v-if="captchaImage"
+              :src="captchaImage"
+              class="captcha-img"
+              title="点击刷新验证码"
+              alt="验证码"
+              @click="loadCaptcha"
+            />
+          </div>
+        </el-form-item>
         <el-form-item>
           <el-button type="primary" class="login-btn" :loading="loading" @click="handleLogin">
             登 录
@@ -44,11 +62,11 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Lock, Sunny, User } from '@element-plus/icons-vue'
-import { login } from '../../api/auth'
+import { Key, Lock, Sunny, User } from '@element-plus/icons-vue'
+import { getCaptcha, login } from '../../api/auth'
 import { useUserStore } from '../../store/user'
 
 const router = useRouter()
@@ -56,15 +74,27 @@ const userStore = useUserStore()
 
 const formRef = ref(null)
 const loading = ref(false)
+const captchaImage = ref('')
+const captchaId = ref('')
 
 const form = reactive({
   username: '',
-  password: ''
+  password: '',
+  captchaCode: ''
 })
 
 const rules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
+  password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
+  captchaCode: [{ required: true, message: '请输入验证码', trigger: 'blur' }]
+}
+
+// 加载图形验证码（点击图片或登录失败后刷新）
+async function loadCaptcha() {
+  form.captchaCode = ''
+  const res = await getCaptcha()
+  captchaId.value = res.data.captchaId
+  captchaImage.value = res.data.image
 }
 
 // 演示账号一键填充
@@ -84,14 +114,24 @@ async function handleLogin() {
   await formRef.value.validate()
   loading.value = true
   try {
-    const res = await login({ username: form.username, password: form.password })
+    const res = await login({
+      username: form.username,
+      password: form.password,
+      captchaId: captchaId.value,
+      captchaCode: form.captchaCode
+    })
     userStore.setLoginInfo(res.data.token, res.data.user)
     ElMessage.success('登录成功')
     router.push(getHomePath(res.data.user.role))
+  } catch (e) {
+    // 验证码一次性使用，无论失败原因都换一张
+    loadCaptcha()
   } finally {
     loading.value = false
   }
 }
+
+onMounted(loadCaptcha)
 </script>
 
 <style scoped>
@@ -157,6 +197,21 @@ async function handleLogin() {
 .login-btn:hover,
 .login-btn:focus {
   background: linear-gradient(135deg, #d97c42, #ad4d1a);
+}
+
+.captcha-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.captcha-img {
+  height: 40px;
+  width: 120px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
 .demo-title {

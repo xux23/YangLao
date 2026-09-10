@@ -85,7 +85,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowDown, Sunny } from '@element-plus/icons-vue'
 import { useUserStore } from '../../store/user'
-import { changePassword } from '../../api/auth'
+import { changePassword, logout as logoutApi } from '../../api/auth'
 
 const route = useRoute()
 const router = useRouter()
@@ -137,7 +137,11 @@ const currentTitle = computed(() => route.meta.title || '')
 function handleCommand(command) {
   if (command === 'logout') {
     ElMessageBox.confirm('确定要退出登录吗？', '提示', { type: 'warning' })
-      .then(() => {
+      .then(async () => {
+        // 先通知服务端拉黑当前令牌，再清除本地登录态（失败也不阻塞退出）
+        try {
+          await logoutApi()
+        } catch (e) { /* 忽略 */ }
         userStore.logout()
         router.push('/login')
       })
@@ -188,6 +192,10 @@ async function handleChangePassword() {
     })
     ElMessage.success('密码修改成功，请重新登录')
     passwordDialogVisible.value = false
+    // 旧令牌一并拉黑，强制重新登录
+    try {
+      await logoutApi()
+    } catch (e) { /* 忽略 */ }
     userStore.logout()
     router.push('/login')
   } finally {
