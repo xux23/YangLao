@@ -20,13 +20,13 @@ public class WebConfig implements WebMvcConfigurer {
     private JwtInterceptor jwtInterceptor;
 
     /**
-     * 注册拦截器：拦截所有 /api/** 请求，登录接口放行
+     * 注册拦截器：拦截所有 /api/** 请求，登录/验证码接口放行
      */
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(jwtInterceptor)
                 .addPathPatterns("/api/**")
-                .excludePathPatterns("/api/auth/login");
+                .excludePathPatterns("/api/auth/login", "/api/auth/captcha");
     }
 
     /**

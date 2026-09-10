@@ -1,5 +1,7 @@
-// 后端接口集成测试：登录、鉴权、五大模块、用药闭环、统计、导出
+// 后端接口集成测试：登录（验证码/锁定/黑名单）、鉴权、五大模块、用药闭环、统计、导出
+// 前置：MySQL + Redis 已启动，后端运行在 localhost:8080
 const BASE = 'http://localhost:8080/api';
+const net = require('net');
 
 let passed = 0;
 let failed = 0;
@@ -28,28 +30,68 @@ async function api(method, path, { token, body, raw } = {}) {
   return { httpStatus: res.status, ...data };
 }
 
+// 极简 Redis GET（RESP 协议，仅支持批量字符串回复），用于从 Redis 读取验证码文本
+function redisGet(key) {
+  return new Promise((resolve, reject) => {
+    const sock = net.connect(6379, '127.0.0.1');
+    sock.on('connect', () => sock.write(`*2\r\n$3\r\nGET\r\n$${Buffer.byteLength(key)}\r\n${key}\r\n`));
+    let buf = Buffer.alloc(0);
+    sock.on('data', d => { buf = Buffer.concat([buf, d]); sock.end(); });
+    sock.on('end', () => {
+      const m = buf.toString().match(/^\$(-?\d+)\r\n/);
+      if (!m) return resolve(null);
+      if (m[1] === '-1') return resolve(null); // key 不存在
+      resolve(buf.slice(m[0].length, m[0].length + Number(m[1])).toString());
+    });
+    sock.on('error', () => reject(new Error('无法连接 Redis(127.0.0.1:6379)，请先启动 Redis')));
+  });
+}
+
+// 完整登录流程：取验证码 → 读 Redis 得到验证码文本 → 提交登录
+// code 传字符串时使用指定验证码（用于验证"验证码错误"分支）
+async function loginWithCaptcha(username, password, code) {
+  const cap = await api('GET', '/auth/captcha');
+  if (cap.code !== 200) return cap;
+  const captchaCode = code !== undefined ? code : await redisGet('captcha:' + cap.data.captchaId);
+  return api('POST', '/auth/login', {
+    body: { username, password, captchaId: cap.data.captchaId, captchaCode }
+  });
+}
+
 async function main() {
   console.log('== 1. 认证 ==');
   // 未登录访问受保护接口 → 401
   const noToken = await api('GET', '/elders');
   check('未登录访问返回 401', noToken.httpStatus === 401 && noToken.code === 401, `(http=${noToken.httpStatus})`);
 
-  // 错误密码
-  const badLogin = await api('POST', '/auth/login', { body: { username: 'admin', password: 'wrong' } });
+  // 验证码错误被拒绝
+  const badCaptcha = await loginWithCaptcha('admin', '123456', '0000');
+  check('验证码错误被拒绝', badCaptcha.code === 400 && badCaptcha.message.includes('验证码'), `(${badCaptcha.message})`);
+
+  // 验证码一次性：同一个 captchaId 第二次提交 → 已过期
+  const cap1 = await api('GET', '/auth/captcha');
+  const code1 = await redisGet('captcha:' + cap1.data.captchaId);
+  const firstUse = await api('POST', '/auth/login', { body: { username: 'admin', password: 'wrong', captchaId: cap1.data.captchaId, captchaCode: code1 } });
+  const reuse = await api('POST', '/auth/login', { body: { username: 'admin', password: '123456', captchaId: cap1.data.captchaId, captchaCode: code1 } });
+  check('正确验证码+错误密码被拒', firstUse.code === 400 && firstUse.message.includes('密码'), `(${firstUse.message})`);
+  check('验证码不能重放', reuse.code === 400 && reuse.message.includes('过期'), `(${reuse.message})`);
+
+  // 错误密码（验证码正确）
+  const badLogin = await loginWithCaptcha('admin', 'wrong');
   check('错误密码被拒绝', badLogin.code === 400, `(${badLogin.message})`);
 
   // admin 登录
-  const adminLogin = await api('POST', '/auth/login', { body: { username: 'admin', password: '123456' } });
-  check('admin 登录成功', adminLogin.code === 200 && adminLogin.data.token, `(role=${adminLogin.data.user.role})`);
+  const adminLogin = await loginWithCaptcha('admin', '123456');
+  check('admin 登录成功', adminLogin.code === 200 && adminLogin.data.token, `(role=${adminLogin.data.user?.role})`);
   const adminToken = adminLogin.data.token;
 
   // nurse01 登录
-  const nurseLogin = await api('POST', '/auth/login', { body: { username: 'nurse01', password: '123456' } });
+  const nurseLogin = await loginWithCaptcha('nurse01', '123456');
   check('nurse01 登录成功', nurseLogin.code === 200);
   const nurseToken = nurseLogin.data.token;
 
   // family01 登录
-  const familyLogin = await api('POST', '/auth/login', { body: { username: 'family01', password: '123456' } });
+  const familyLogin = await loginWithCaptcha('family01', '123456');
   check('family01 登录成功', familyLogin.code === 200);
   const familyToken = familyLogin.data.token;
 
@@ -149,7 +191,10 @@ async function main() {
   check('停用后不再显示该药', !plansAfter.data.some(p => p.medicineName === '接口测试药片'));
 
   console.log('== 8. 探访预约 ==');
-  const visitAdd = await api('POST', '/visits', { token: familyToken, body: { elderId: 1, visitDate: '2026-08-25', visitTime: '上午 9:00-11:00', persons: 2, remark: '接口测试' } });
+  // 探访日期动态生成（未来 5 天 / 6 天），避免硬编码日期过期
+  const futureDate1 = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10);
+  const futureDate2 = new Date(Date.now() + 6 * 86400000).toISOString().slice(0, 10);
+  const visitAdd = await api('POST', '/visits', { token: familyToken, body: { elderId: 1, visitDate: futureDate1, visitTime: '上午 9:00-11:00', persons: 2, remark: '接口测试' } });
   check('家属提交预约', visitAdd.code === 200, `(${visitAdd.message})`);
   const familyVisits = await api('GET', '/visits', { token: familyToken });
   check('家属只见自己的预约', familyVisits.code === 200 && familyVisits.data.records.every(v => v.familyName === '张小明'));
@@ -161,7 +206,7 @@ async function main() {
   const finishVisit = await api('PUT', `/visits/${pendingVisit.id}/finish`, { token: nurseToken });
   check('标记探访完成', finishVisit.code === 200);
   // 驳回流程：重新提交一个预约再走驳回
-  await api('POST', '/visits', { token: familyToken, body: { elderId: 1, visitDate: '2026-08-26', visitTime: '下午 14:00-16:00', persons: 1, remark: '' } });
+  await api('POST', '/visits', { token: familyToken, body: { elderId: 1, visitDate: futureDate2, visitTime: '下午 14:00-16:00', persons: 1, remark: '' } });
   const pendingVisit2 = (await api('GET', '/visits?status=0', { token: familyToken })).data.records[0];
   const rejectNoRemark = await api('PUT', `/visits/${pendingVisit2.id}/audit`, { token: nurseToken, body: { status: 2, auditRemark: '' } });
   check('驳回必填原因', rejectNoRemark.code === 400, `(${rejectNoRemark.message})`);
@@ -214,6 +259,33 @@ async function main() {
   check('日志含接口与IP', !!logs.data.records[0].method && !!logs.data.records[0].ip, `(${logs.data.records[0].method}, ip=${logs.data.records[0].ip})`);
   const nurseLogs = await api('GET', '/logs', { token: nurseToken });
   check('护理人员查看日志 403', nurseLogs.httpStatus === 403, `(http=${nurseLogs.httpStatus})`);
+
+  console.log('== 14. 登录安全（锁定与黑名单）==');
+  // 新建测试账号做锁定测试，不碰演示账号
+  await api('POST', '/users', { token: adminToken, body: { username: 'lock_test', password: '123456', realName: '锁定测试', role: 'nurse', phone: '13811113333', status: 1 } });
+  let lastMsg = '';
+  for (let i = 0; i < 5; i++) {
+    const r = await loginWithCaptcha('lock_test', 'wrong-password');
+    lastMsg = r.message;
+  }
+  check('连续错 5 次均提示密码错误', lastMsg.includes('密码'), `(${lastMsg})`);
+  const locked = await loginWithCaptcha('lock_test', '123456');
+  check('第 6 次密码正确也被锁定拒绝', locked.code === 400 && locked.message.includes('锁定'), `(${locked.message})`);
+  // 清理测试账号（Redis 失败计数 15 分钟后自动过期，无需处理）
+  const findLock = await api('GET', '/users?username=lock_test', { token: adminToken });
+  const delLock = await api('DELETE', `/users/${findLock.data.records[0].id}`, { token: adminToken });
+  check('清理锁定测试账号', delLock.code === 200);
+
+  // 黑名单：重新登录 → 退出 → 旧令牌立即失效
+  const reLogin = await loginWithCaptcha('family01', '123456');
+  check('family01 再次登录', reLogin.code === 200);
+  const tmpToken = reLogin.data.token;
+  const meOk = await api('GET', '/auth/me', { token: tmpToken });
+  check('退出前令牌有效', meOk.code === 200);
+  const out = await api('POST', '/auth/logout', { token: tmpToken });
+  check('安全退出', out.code === 200);
+  const meAfter = await api('GET', '/auth/me', { token: tmpToken });
+  check('退出后旧令牌被拒 401', meAfter.httpStatus === 401, `(http=${meAfter.httpStatus})`);
 
   console.log(`\n========== 结果: 通过 ${passed} / 失败 ${failed} ==========`);
   process.exit(failed > 0 ? 1 : 0);

@@ -8,6 +8,13 @@ spring:
     url: jdbc:mysql://localhost:3306/elder_care?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: 123456
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+      # password: 如设置了 Redis 密码请在这里填写
+      timeout: 3000ms
   jackson:
     time-zone: GMT+8
 
@@ -19,13 +26,23 @@ mybatis-plus:
     db-config:
       id-type: auto
 
-# 自定义配置：JWT 密钥与有效期
+# 自定义配置：JWT 密钥与有效期、登录安全参数
 app:
   jwt:
     # HS256 密钥，长度至少 32 位，部署时可修改
     secret: elder-care-system-jwt-secret-key-2026-abcdefghijk
     # 令牌有效期（小时）
     expire-hours: 24
+  captcha:
+    # 是否启用图形验证码（关闭后登录不再要求验证码）
+    enabled: true
+    # 验证码有效期（秒），存入 Redis 的 TTL
+    expire-seconds: 300
+  login:
+    # 密码最大连续失败次数，达到即锁定
+    max-fail-count: 5
+    # 锁定时长（分钟）
+    lock-minutes: 15
 
 logging:
   level:

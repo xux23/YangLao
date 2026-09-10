@@ -6,6 +6,7 @@ import com.eldercare.dto.LoginDTO;
 import com.eldercare.dto.PasswordDTO;
 import com.eldercare.entity.SysUser;
 import com.eldercare.service.AuthService;
+import com.eldercare.vo.CaptchaVO;
 import com.eldercare.vo.LoginVO;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,7 +16,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 认证接口：登录、当前用户信息、修改密码
+ * 认证接口：验证码、登录、当前用户信息、修改密码、安全退出
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -25,11 +26,19 @@ public class AuthController {
     private AuthService authService;
 
     /**
+     * 图形验证码（放行路径，无需令牌）
+     */
+    @GetMapping("/captcha")
+    public Result<CaptchaVO> captcha() {
+        return Result.success(authService.createCaptcha());
+    }
+
+    /**
      * 登录（放行路径，无需令牌）
      */
     @PostMapping("/login")
     public Result<LoginVO> login(@Valid @RequestBody LoginDTO dto) {
-        return Result.success("登录成功", authService.login(dto.getUsername(), dto.getPassword()));
+        return Result.success("登录成功", authService.login(dto));
     }
 
     /**
@@ -50,5 +59,16 @@ public class AuthController {
         Map<String, Object> data = new HashMap<>();
         data.put("success", true);
         return Result.success("密码修改成功", data);
+    }
+
+    /**
+     * 安全退出：拉黑当前令牌（需登录，防止匿名请求滥用）
+     */
+    @PostMapping("/logout")
+    public Result<Map<String, Object>> logout(@RequestHeader("Authorization") String authHeader) {
+        authService.logout(authHeader.substring(7));
+        Map<String, Object> data = new HashMap<>();
+        data.put("success", true);
+        return Result.success("退出成功", data);
     }
 }

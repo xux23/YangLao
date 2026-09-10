@@ -1,6 +1,8 @@
 package com.eldercare.security;
 
 import com.eldercare.common.BusinessException;
+import com.eldercare.common.RedisKeys;
+import com.eldercare.common.RedisService;
 import com.eldercare.entity.SysUser;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,14 +17,18 @@ import java.util.Arrays;
 /**
  * JWT 登录拦截器：
  * 1. 校验请求头中的令牌是否有效；
- * 2. 把用户信息放入 UserContext；
- * 3. 根据方法上的 @RequireRole 注解做角色权限校验。
+ * 2. 检查 Redis 登出黑名单（退出登录的令牌立即失效）；
+ * 3. 把用户信息放入 UserContext；
+ * 4. 根据方法上的 @RequireRole 注解做角色权限校验。
  */
 @Component
 public class JwtInterceptor implements HandlerInterceptor {
 
     @Autowired
     private JwtUtil jwtUtil;
+
+    @Autowired
+    private RedisService redisService;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
@@ -40,21 +46,27 @@ public class JwtInterceptor implements HandlerInterceptor {
         if (token == null || !token.startsWith("Bearer ")) {
             throw new BusinessException(401, "未登录或令牌已过期");
         }
+        token = token.substring(7);
         Claims claims;
         try {
-            claims = jwtUtil.parseToken(token.substring(7));
+            claims = jwtUtil.parseToken(token);
         } catch (Exception e) {
             throw new BusinessException(401, "未登录或令牌已过期");
         }
 
-        // 2. 用户信息放入上下文
+        // 2. 登出黑名单检查：令牌签名有效但已被主动撤销
+        if (redisService.hasKey(RedisKeys.blacklistKey(token))) {
+            throw new BusinessException(401, "令牌已失效，请重新登录");
+        }
+
+        // 3. 用户信息放入上下文
         SysUser user = new SysUser();
         user.setId(((Number) claims.get("userId")).longValue());
         user.setUsername(claims.getSubject());
         user.setRole((String) claims.get("role"));
         UserContext.set(user);
 
-        // 3. 角色权限校验
+        // 4. 角色权限校验
         HandlerMethod handlerMethod = (HandlerMethod) handler;
         RequireRole requireRole = handlerMethod.getMethodAnnotation(RequireRole.class);
         if (requireRole == null) {
