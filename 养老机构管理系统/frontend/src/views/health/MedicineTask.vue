@@ -171,7 +171,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #ad4538;
+  color: var(--el-color-danger);
   font-weight: bold;
 }
 </style>

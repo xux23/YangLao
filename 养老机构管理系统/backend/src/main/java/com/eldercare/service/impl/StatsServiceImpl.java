@@ -56,7 +56,7 @@ public class StatsServiceImpl implements StatsService {
     @Override
     public Map<String, Object> getAgeDistribution() {
         // 固定年龄段顺序，数据库没查到某段的补 0
-        List<String> categories = List.of("60-69", "70-79", "80-89", "90+");
+        List<String> categories = List.of("60岁以下", "60-69", "70-79", "80-89", "90+");
         Map<String, Long> countMap = new HashMap<>();
         for (Map<String, Object> row : statsMapper.selectAgeDistribution()) {
             countMap.put(String.valueOf(row.get("ageGroup")),

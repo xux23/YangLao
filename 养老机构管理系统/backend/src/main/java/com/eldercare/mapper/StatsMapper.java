@@ -37,6 +37,7 @@ public interface StatsMapper {
 
     /** 老人年龄分布（按年龄段分组） */
     @Select("SELECT CASE " +
+            "WHEN TIMESTAMPDIFF(YEAR, birthday, CURDATE()) < 60 THEN '60岁以下' " +
             "WHEN TIMESTAMPDIFF(YEAR, birthday, CURDATE()) <= 69 THEN '60-69' " +
             "WHEN TIMESTAMPDIFF(YEAR, birthday, CURDATE()) <= 79 THEN '70-79' " +
             "WHEN TIMESTAMPDIFF(YEAR, birthday, CURDATE()) <= 89 THEN '80-89' " +

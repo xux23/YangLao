@@ -13,7 +13,7 @@ spring:
       host: localhost
       port: 6379
       database: 0
-      # password: 如设置了 Redis 密码请在这里填写
+      password: "123456"
       timeout: 3000ms
   jackson:
     time-zone: GMT+8

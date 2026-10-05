@@ -29,6 +29,7 @@
       <el-table-column prop="visitDate" label="探访日期" width="110" />
       <el-table-column prop="visitTime" label="探访时段" width="150" />
       <el-table-column prop="persons" label="人数" width="70" />
+      <el-table-column prop="remark" label="备注" min-width="120" show-overflow-tooltip />
       <el-table-column label="状态" width="90">
         <template #default="{ row }">
           <el-tag :type="statusType(row.status)">{{ statusName(row.status) }}</el-tag>

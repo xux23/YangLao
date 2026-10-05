@@ -36,6 +36,9 @@ public class VisitAppointment {
     /** 探访人数 */
     private Integer persons;
 
+    /** 探访备注（家属提交，选填） */
+    private String remark;
+
     /** 状态：0 待审核 / 1 已通过 / 2 已驳回 / 3 已完成 */
     private Integer status;
 

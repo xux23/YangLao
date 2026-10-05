@@ -238,7 +238,7 @@ async function main() {
   const overview = await api('GET', '/stats/overview', { token: adminToken });
   check('看板总览', overview.code === 200 && overview.data.elderTotal >= 5, `(老人${overview.data.elderTotal} 在住${overview.data.inHouse} 入住率${overview.data.checkInRate}% 今日护理${overview.data.todayCareCount})`);
   const ageDist = await api('GET', '/stats/age-distribution', { token: adminToken });
-  check('年龄分布', ageDist.code === 200 && ageDist.data.categories.length === 4 && ageDist.data.counts.reduce((a, b) => a + b, 0) >= 5, `(${ageDist.data.categories.join('/')})`);
+  check('年龄分布(5档含60岁以下)', ageDist.code === 200 && ageDist.data.categories.length === 5 && ageDist.data.counts.reduce((a, b) => a + b, 0) >= 5, `(${ageDist.data.categories.join('/')})`);
   const trend = await api('GET', '/stats/activity-trend?days=30', { token: adminToken });
   check('30天趋势(30个日期点)', trend.code === 200 && trend.data.dates.length === 30 && trend.data.careCounts.length === 30, `(护理合计=${trend.data.careCounts.reduce((a, b) => a + b, 0)})`);
   const healthTrend = await api('GET', '/stats/elder/1/health-trend?days=30&metric=bloodPressure', { token: adminToken });

@@ -225,7 +225,7 @@ function renderTrend(dates, values) {
     series = [{ name: metricName[metric.value], type: 'line', smooth: true, data: values }]
   }
   trendChart.setOption({
-    color: ['#d96f3a', '#3f7d6b'],
+    color: ['#409eff', '#67c23a'],
     tooltip: { trigger: 'axis' },
     legend: series.length > 1 ? { data: ['收缩压', '舒张压'], icon: 'circle', itemWidth: 8 } : undefined,
     grid: { left: 45, right: 20, top: 40, bottom: 30 },
@@ -233,13 +233,13 @@ function renderTrend(dates, values) {
       type: 'category',
       boundaryGap: false,
       data: dates,
-      axisLine: { lineStyle: { color: '#d8ceba' } },
-      axisLabel: { color: '#8b8175' }
+      axisLine: { lineStyle: { color: '#dcdfe6' } },
+      axisLabel: { color: '#909399' }
     },
     yAxis: {
       type: 'value',
-      splitLine: { lineStyle: { color: '#efe8da', type: 'dashed' } },
-      axisLabel: { color: '#8b8175' }
+      splitLine: { lineStyle: { color: '#e4e7ed', type: 'dashed' } },
+      axisLabel: { color: '#909399' }
     },
     series: series.map((s, i) => ({
       ...s,
@@ -367,7 +367,7 @@ onUnmounted(() => {
 }
 
 .elder-avatar {
-  background: #2b6cb0;
+  background: var(--el-color-primary);
   font-size: 22px;
 }
 

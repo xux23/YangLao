@@ -125,6 +125,7 @@ CREATE TABLE visit_appointment (
   visit_date   DATE         NOT NULL COMMENT '探访日期',
   visit_time   VARCHAR(50)  DEFAULT NULL COMMENT '探访时段（如上午9:00-11:00）',
   persons      INT          NOT NULL DEFAULT 1 COMMENT '探访人数',
+  remark       VARCHAR(200) DEFAULT NULL COMMENT '探访备注（家属提交，选填）',
   status       TINYINT      NOT NULL DEFAULT 0 COMMENT '状态 0待审核 1已通过 2已驳回 3已完成',
   audit_remark VARCHAR(200) DEFAULT NULL COMMENT '审核意见（驳回必填）',
   create_time  DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -278,12 +279,12 @@ INSERT INTO medicine_plan (elder_id, medicine_name, dosage, plan_date, plan_time
 (2, '阿司匹林肠溶片', '每次1片', CURDATE(), '09:00:00', 0, NULL);
 
 -- 探访预约（待审核 / 已通过 / 已驳回 / 已完成 各状态均有）
-INSERT INTO visit_appointment (elder_id, family_id, visit_date, visit_time, persons, status, audit_remark) VALUES
-(1, 4, DATE_ADD(CURDATE(), INTERVAL 4 DAY), '上午 9:00-11:00',  2, 0, NULL),
-(1, 4, DATE_ADD(CURDATE(), INTERVAL 1 DAY), '下午 14:00-16:00', 5, 2, '探访人数过多，请改约其它时段'),
-(2, 5, DATE_ADD(CURDATE(), INTERVAL 2 DAY), '下午 14:00-16:00', 1, 1, '同意探望'),
-(1, 4, DATE_SUB(CURDATE(), INTERVAL 3 DAY), '上午 9:00-11:00',  2, 3, NULL),
-(2, 5, DATE_SUB(CURDATE(), INTERVAL 8 DAY), '上午 9:00-11:00',  1, 3, NULL);
+INSERT INTO visit_appointment (elder_id, family_id, visit_date, visit_time, persons, remark, status, audit_remark) VALUES
+(1, 4, DATE_ADD(CURDATE(), INTERVAL 4 DAY), '上午 9:00-11:00',  2, '带水果探望', 0, NULL),
+(1, 4, DATE_ADD(CURDATE(), INTERVAL 1 DAY), '下午 14:00-16:00', 5, '想接老人回家小聚', 2, '探访人数过多，请改约其它时段'),
+(2, 5, DATE_ADD(CURDATE(), INTERVAL 2 DAY), '下午 14:00-16:00', 1, NULL, 1, '同意探望'),
+(1, 4, DATE_SUB(CURDATE(), INTERVAL 3 DAY), '上午 9:00-11:00',  2, '陪同做心肺检查', 3, NULL),
+(2, 5, DATE_SUB(CURDATE(), INTERVAL 8 DAY), '上午 9:00-11:00',  1, NULL, 3, NULL);
 
 -- 家属留言（未回复 / 已回复）
 INSERT INTO message (elder_id, family_id, content, reply, reply_time, status) VALUES

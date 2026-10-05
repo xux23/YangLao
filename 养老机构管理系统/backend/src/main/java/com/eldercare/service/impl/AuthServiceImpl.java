@@ -74,7 +74,8 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public LoginVO login(LoginDTO dto) {
         // ① 锁定检查：失败次数达到上限直接拒绝（放在最前，锁定期间不再消耗验证码）
-        String failKey = RedisKeys.failKey(dto.getUsername());        String failCount = redisService.get(failKey);
+        String failKey = RedisKeys.failKey(dto.getUsername());
+        String failCount = redisService.get(failKey);
         if (failCount != null && Integer.parseInt(failCount) >= maxFailCount) {
             throw new BusinessException(400, "密码错误次数过多，账号已被锁定，请" + lockMinutes + "分钟后再试");
         }
